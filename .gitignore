@@ -1,0 +1,6 @@
+# Build artifacts
+OaAecMcpPlugin/bin/
+OaAecMcpPlugin/obj/
+
+# Claude Code worktrees
+.claude/worktrees/
