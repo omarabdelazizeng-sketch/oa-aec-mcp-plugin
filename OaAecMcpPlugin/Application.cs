@@ -41,6 +41,7 @@ public class Application : ExternalApplication
             registry.Register(new SummarizeModelHealthCommand());
             registry.Register(new ListUnplacedRoomsCommand());
             registry.Register(new FindWarningsByCategoryCommand());
+            registry.Register(new AuditNamingConventionsCommand());
 
             // CommandDispatcher creates the ExternalEvent internally (requires main thread).
             // OnStartup IS on the main thread, so this is correct.
