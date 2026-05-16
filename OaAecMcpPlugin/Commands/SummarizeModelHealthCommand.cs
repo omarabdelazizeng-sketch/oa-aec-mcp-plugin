@@ -25,12 +25,14 @@ public class SummarizeModelHealthCommand : ICommand
         // 1. Warning count
         var warningCount = doc.GetWarnings().Count;
 
-        // 2. Unplaced rooms — Location == null means the room has no area boundary placement.
+        // 2. Unplaced rooms — Area < 0.001 is the correct signal: Location can be non-null
+        //    on rooms with zero area (e.g. rooms placed but not bounded), so checking Area
+        //    is more accurate than checking Location.
         var unplacedRoomCount = new FilteredElementCollector(doc)
             .OfCategory(BuiltInCategory.OST_Rooms)
             .WhereElementIsNotElementType()
             .Cast<Room>()
-            .Count(r => r.Location == null);
+            .Count(r => r.Area < 0.001);
 
         // 3. Unused families: not in-place AND zero instances in the model.
         //    Instance check uses family.FamilyCategory as the collector category filter.
