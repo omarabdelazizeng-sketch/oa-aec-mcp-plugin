@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>OaAecMcpPlugin</Name>
+    <Assembly>OaAecMcpPlugin\OaAecMcpPlugin.dll</Assembly>
+    <AddInId>A878C3BA-19B6-43A9-9063-CB7270799C12</AddInId>
+    <FullClassName>OaAecMcpPlugin.Application</FullClassName>
+    <VendorId>Development</VendorId>
+    <VendorDescription></VendorDescription>
+  </AddIn>
+</RevitAddIns>
