@@ -73,7 +73,7 @@ public class AuditNamingConventionsCommand : ICommand
         if (parameters.TryGetProperty("max_violations", out var maxProp) &&
             maxProp.ValueKind == JsonValueKind.Number &&
             maxProp.TryGetInt32(out var maxVal))
-            maxViolations = Math.Clamp(maxVal, 1, 200);
+            maxViolations = Math.Max(1, Math.Min(maxVal, 200)); // Math.Clamp is unavailable on net48
 
         // Split known vs unknown categories, preserving original casing for known names.
         var knownToCheck = requestedCategories
@@ -140,7 +140,7 @@ public class AuditNamingConventionsCommand : ICommand
                     .Where(v => !v.IsTemplate && v.CanBePrinted))
                 {
                     names.Add(v.Name);
-                    ids.Add(v.Id.Value);
+                    ids.Add(v.Id.ToLong());
                 }
                 break;
 
@@ -150,7 +150,7 @@ public class AuditNamingConventionsCommand : ICommand
                     .Cast<ViewSheet>())
                 {
                     names.Add($"{s.SheetNumber} - {s.Name}");
-                    ids.Add(s.Id.Value);
+                    ids.Add(s.Id.ToLong());
                 }
                 break;
 
@@ -162,7 +162,7 @@ public class AuditNamingConventionsCommand : ICommand
                     .Where(r => r.Area > 0))
                 {
                     names.Add(r.Name);
-                    ids.Add(r.Id.Value);
+                    ids.Add(r.Id.ToLong());
                 }
                 break;
 
@@ -172,7 +172,7 @@ public class AuditNamingConventionsCommand : ICommand
                     .Cast<Level>())
                 {
                     names.Add(l.Name);
-                    ids.Add(l.Id.Value);
+                    ids.Add(l.Id.ToLong());
                 }
                 break;
 
@@ -182,7 +182,7 @@ public class AuditNamingConventionsCommand : ICommand
                     .Cast<WallType>())
                 {
                     names.Add(wt.Name);
-                    ids.Add(wt.Id.Value);
+                    ids.Add(wt.Id.ToLong());
                 }
                 break;
 
@@ -193,7 +193,7 @@ public class AuditNamingConventionsCommand : ICommand
                     .Cast<FamilySymbol>())
                 {
                     names.Add(fs.Name);
-                    ids.Add(fs.Id.Value);
+                    ids.Add(fs.Id.ToLong());
                 }
                 break;
 
@@ -204,7 +204,7 @@ public class AuditNamingConventionsCommand : ICommand
                     .Cast<FamilySymbol>())
                 {
                     names.Add(fs.Name);
-                    ids.Add(fs.Id.Value);
+                    ids.Add(fs.Id.ToLong());
                 }
                 break;
 
@@ -214,7 +214,7 @@ public class AuditNamingConventionsCommand : ICommand
                     .Cast<Family>())
                 {
                     names.Add(f.Name);
-                    ids.Add(f.Id.Value);
+                    ids.Add(f.Id.ToLong());
                 }
                 break;
         }

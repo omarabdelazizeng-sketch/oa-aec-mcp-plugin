@@ -17,6 +17,9 @@
         <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*"/>
         <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*"/>
 
+        <!-- JSON: in-box on .NET 8, NuGet package on .NET Framework 4.8 (Revit 2023/2024) -->
+        <PackageReference Include="System.Text.Json" Version="8.0.5" Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'"/>
+
         <!-- Logging -->
         <PackageReference Include="Serilog" Version="4.3.1"/>
         <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0"/>

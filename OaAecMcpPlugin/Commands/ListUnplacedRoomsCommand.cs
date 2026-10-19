@@ -43,7 +43,7 @@ public class ListUnplacedRoomsCommand : ICommand
                         string.Equals(r.Level?.Name, levelFilter, StringComparison.OrdinalIgnoreCase))
             .Select(r => new
             {
-                id         = r.Id.Value,
+                id         = r.Id.ToLong(),
                 name       = r.Name,
                 department = r.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "",
                 level_name = r.Level?.Name ?? "(no level)"

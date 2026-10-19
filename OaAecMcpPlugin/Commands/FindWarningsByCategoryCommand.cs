@@ -68,7 +68,7 @@ public class FindWarningsByCategoryCommand : ICommand
                 count       = g.Count(),
                 // Collect up to 10 distinct failing element IDs across all warnings in the group.
                 element_ids = g.SelectMany(w => w.GetFailingElements())
-                               .Select(eid => eid.Value)
+                               .Select(eid => eid.ToLong())
                                .Distinct()
                                .Take(10)
                                .ToList()

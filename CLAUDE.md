@@ -18,7 +18,9 @@ The Revit-side companion to `oa-aec-mcp` (the TypeScript MCP server). Together t
 
 **What this plugin is NOT:**
 - It is **not a Revit UI add-in.** No ribbon buttons, no tool windows, no MVVM, no WPF, no themes. The user interacts with this plugin entirely through Claude (or another MCP client), never through Revit's UI.
-- It is **not multi-version yet.** v0.1 targets Revit 2025 only. Multi-version is a v0.2+ concern.
+- It is **not fully multi-version.** Supported builds: Revit 2025 (`Release.R25`, .NET 8) and Revit 2023 (`Release.R23`, .NET Framework 4.8). Other versions are untested.
+  - Every command must compile for **both** targets: no .NET 6+-only APIs (`Task.WaitAsync`, `Math.Clamp`, …) and no Revit 2024+-only APIs.
+  - Element ids: always use Nice3point's version-safe `id.ToLong()` (Nice3point.Revit.Extensions), never `ElementId.Value` (Revit 2024+) or `IntegerValue` directly.
 - It is **not OA-Tools.** OA-Tools is the separate, multi-version, UI-heavy Revit add-in. This plugin is intentionally minimal — every feature added here is one more thing that can break the bridge.
 
 ---
@@ -27,8 +29,8 @@ The Revit-side companion to `oa-aec-mcp` (the TypeScript MCP server). Together t
 
 | Layer | Technology |
 |---|---|
-| Language | C# 12 on .NET 8 |
-| Revit version target | 2025 only (v0.1) |
+| Language | C# (LangVersion latest) on .NET 8 (R25) and .NET Framework 4.8 (R23) |
+| Revit version target | 2025 and 2023 |
 | Revit API | `Nice3point.Revit.Api.*` NuGet packages |
 | WebSocket server | `System.Net.WebSockets` (built into .NET, no external dependency) |
 | JSON | `System.Text.Json` (built-in, faster than Newtonsoft, no version conflicts with Revit's bundled Newtonsoft) |
