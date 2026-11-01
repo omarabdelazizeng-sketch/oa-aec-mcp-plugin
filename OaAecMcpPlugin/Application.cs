@@ -39,6 +39,8 @@ public class Application : ExternalApplication
             var registry = new CommandRegistry();
             registry.Register(new PingCommand());
             registry.Register(new SummarizeModelHealthCommand());
+            registry.Register(new GetDatumsCommand());
+            registry.Register(new ApplyDatumsCommand());
 
             // CommandDispatcher creates the ExternalEvent internally (requires main thread).
             // OnStartup IS on the main thread, so this is correct.
