@@ -80,7 +80,12 @@ public class WebSocketServer
             HttpListenerContext context;
             try
             {
-                context = await _listener!.GetContextAsync().WaitAsync(ct);
+                // Task.WaitAsync is .NET 6+; WhenAny keeps this portable to net48 (Revit 2023/2024).
+                var getContextTask = _listener!.GetContextAsync();
+                var completed = await Task.WhenAny(getContextTask, Task.Delay(System.Threading.Timeout.Infinite, ct));
+                if (completed != getContextTask)
+                    break;
+                context = await getContextTask;
             }
             catch (OperationCanceledException)
             {
@@ -90,6 +95,11 @@ public class WebSocketServer
             {
                 // Listener stopped because Stop() was called — expected.
                 Log.Debug("HttpListener closed during shutdown: {Message}", ex.Message);
+                break;
+            }
+            catch (ObjectDisposedException) when (ct.IsCancellationRequested)
+            {
+                // net48 HttpListener throws ObjectDisposedException when stopped — expected.
                 break;
             }
             catch (Exception ex)

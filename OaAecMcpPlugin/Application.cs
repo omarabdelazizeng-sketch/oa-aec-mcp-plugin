@@ -39,6 +39,16 @@ public class Application : ExternalApplication
             var registry = new CommandRegistry();
             registry.Register(new PingCommand());
             registry.Register(new SummarizeModelHealthCommand());
+            registry.Register(new ListUnplacedRoomsCommand());
+            registry.Register(new FindWarningsByCategoryCommand());
+            registry.Register(new AuditNamingConventionsCommand());
+            registry.Register(new GetScheduleDataCommand());
+            registry.Register(new GetDatumsCommand());
+            registry.Register(new ApplyDatumsCommand());
+            registry.Register(new EnsureTypesCommand());
+            registry.Register(new ApplyColumnsCommand());
+            registry.Register(new ApplyFloorsCommand());
+            registry.Register(new GetModelElementsCommand());
 
             // CommandDispatcher creates the ExternalEvent internally (requires main thread).
             // OnStartup IS on the main thread, so this is correct.
