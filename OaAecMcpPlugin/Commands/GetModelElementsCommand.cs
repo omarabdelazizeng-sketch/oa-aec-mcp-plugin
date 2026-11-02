@@ -1,0 +1,161 @@
+using Autodesk.Revit.DB;
+using OaAecMcpPlugin.Services;
+using System.Text.Json;
+
+namespace OaAecMcpPlugin.Commands;
+
+/// <summary>
+///     Read-only. Reports columns, floors, walls and their types in millimetres, so a checker can verify
+///     the model against a spec independently of the apply_* builders. Raw facts only — no comparison.
+///
+///     Params (optional): { "categories": ["structural_columns", "columns", "floors", "walls", "types"] }
+///     Default: all of them.
+///
+///     Threading: Execute is called exclusively from
+///     <see cref="OaAecMcpPlugin.Dispatch.CommandExternalEventHandler.Execute"/> on Revit's main thread.
+/// </summary>
+public class GetModelElementsCommand : ICommand
+{
+    public string Name => "get_model_elements";
+
+    private static readonly string[] All = { "structural_columns", "columns", "floors", "walls", "types" };
+
+    public object Execute(Document? doc, JsonElement parameters)
+    {
+        if (doc == null) throw new InvalidOperationException("No active Revit document");
+        if (doc.IsFamilyDocument) throw new ArgumentException("get_model_elements needs a project document");
+
+        var wanted = new HashSet<string>(All, StringComparer.Ordinal);
+        if (parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty("categories", out var cats)
+            && cats.ValueKind == JsonValueKind.Array)
+        {
+            wanted = cats.EnumerateArray().Select(c => c.GetString() ?? "").ToHashSet(StringComparer.Ordinal);
+            var unknown = wanted.Except(All).ToList();
+            if (unknown.Count > 0) throw new ArgumentException($"unknown categories: {string.Join(", ", unknown)}");
+        }
+
+        var levelNames = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+            .ToDictionary(l => l.Id, l => l);
+
+        var result = new Dictionary<string, object> { ["document"] = doc.Title, ["units"] = "mm" };
+        if (wanted.Contains("structural_columns")) result["structural_columns"] = Columns(doc, BuiltInCategory.OST_StructuralColumns, levelNames);
+        if (wanted.Contains("columns")) result["columns"] = Columns(doc, BuiltInCategory.OST_Columns, levelNames);
+        if (wanted.Contains("floors")) result["floors"] = Floors(doc, levelNames);
+        if (wanted.Contains("walls")) result["walls"] = Walls(doc, levelNames);
+        if (wanted.Contains("types")) result["types"] = Types(doc);
+        return result;
+    }
+
+    private static string? LevelName(Dictionary<ElementId, Level> levels, ElementId id) =>
+        levels.TryGetValue(id, out var l) ? l.Name : null;
+
+    private static double Len(Element e, BuiltInParameter bip) =>
+        MmUnits.FromFt(e.get_Parameter(bip)?.AsDouble() ?? 0);
+
+    private static List<object> Columns(Document doc, BuiltInCategory cat, Dictionary<ElementId, Level> levels) =>
+        new FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType()
+            .OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+            .Select(c =>
+            {
+                var lp = c.Location as LocationPoint;
+                var baseId = c.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_PARAM)?.AsElementId() ?? ElementId.InvalidElementId;
+                var topId = c.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_PARAM)?.AsElementId() ?? ElementId.InvalidElementId;
+                var baseOff = Len(c, BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM);
+                var topOff = Len(c, BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM);
+                double? bottomZ = levels.TryGetValue(baseId, out var bl) ? MmUnits.FromFt(bl.ProjectElevation) + baseOff : null;
+                double? topZ = levels.TryGetValue(topId, out var tl) ? MmUnits.FromFt(tl.ProjectElevation) + topOff : null;
+                return (object)new
+                {
+                    id = c.Id.Value, mark = ModelLookup.Mark(c), family = c.Symbol.FamilyName, type = c.Symbol.Name,
+                    x_mm = lp != null ? MmUnits.FromFt(lp.Point.X) : (double?)null,
+                    y_mm = lp != null ? MmUnits.FromFt(lp.Point.Y) : (double?)null,
+                    rotation_deg = lp != null ? lp.Rotation * 180.0 / Math.PI : (double?)null,
+                    base_level = LevelName(levels, baseId), base_offset_mm = baseOff,
+                    top_level = LevelName(levels, topId), top_offset_mm = topOff,
+                    bottom_z_mm = bottomZ, top_z_mm = topZ,
+                };
+            }).ToList();
+
+    private static List<object> Floors(Document doc, Dictionary<ElementId, Level> levels) =>
+        new FilteredElementCollector(doc).OfClass(typeof(Floor)).Cast<Floor>()
+            .Select(f =>
+            {
+                var loops = new List<List<double[]>>();
+                var curved = false;
+                if (doc.GetElement(f.SketchId) is Sketch sketch)
+                    foreach (CurveArray arr in sketch.Profile)
+                    {
+                        var pts = new List<double[]>();
+                        foreach (Curve c in arr)
+                        {
+                            if (c is not Line) curved = true;
+                            var p = c.GetEndPoint(0);
+                            pts.Add(new[] { MmUnits.FromFt(p.X), MmUnits.FromFt(p.Y) });
+                        }
+                        loops.Add(pts);
+                    }
+                var type = doc.GetElement(f.GetTypeId()) as FloorType;
+                return (object)new
+                {
+                    id = f.Id.Value, mark = ModelLookup.Mark(f), type = type?.Name,
+                    level = LevelName(levels, f.LevelId),
+                    offset_mm = Len(f, BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM),
+                    structural = f.get_Parameter(BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL)?.AsInteger() == 1,
+                    thickness_mm = type?.GetCompoundStructure() is { } cs ? MmUnits.FromFt(cs.GetWidth()) : (double?)null,
+                    has_curved_edges = curved,
+                    loops_mm = loops,
+                };
+            }).ToList();
+
+    private static List<object> Walls(Document doc, Dictionary<ElementId, Level> levels) =>
+        new FilteredElementCollector(doc).OfClass(typeof(Wall)).Cast<Wall>()
+            .Select(w =>
+            {
+                var curve = (w.Location as LocationCurve)?.Curve;
+                var topId = w.get_Parameter(BuiltInParameter.WALL_HEIGHT_TYPE)?.AsElementId() ?? ElementId.InvalidElementId;
+                return (object)new
+                {
+                    id = w.Id.Value, mark = ModelLookup.Mark(w), type = w.WallType.Name, kind = w.WallType.Kind.ToString(),
+                    width_mm = MmUnits.FromFt(w.WallType.Width),
+                    start_mm = curve != null ? MmUnits.Of(curve.GetEndPoint(0)) : null,
+                    end_mm = curve != null ? MmUnits.Of(curve.GetEndPoint(1)) : null,
+                    is_line = curve is Line,
+                    location_line = w.get_Parameter(BuiltInParameter.WALL_KEY_REF_PARAM)?.AsInteger(),
+                    flipped = w.Flipped,
+                    base_level = LevelName(levels, w.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT)?.AsElementId() ?? ElementId.InvalidElementId),
+                    base_offset_mm = Len(w, BuiltInParameter.WALL_BASE_OFFSET),
+                    top_level = LevelName(levels, topId),
+                    top_offset_mm = Len(w, BuiltInParameter.WALL_TOP_OFFSET),
+                    unconnected_height_mm = Len(w, BuiltInParameter.WALL_USER_HEIGHT_PARAM),
+                };
+            }).ToList();
+
+    private static object Types(Document doc)
+    {
+        static object Layers(HostObjAttributes t) => t.GetCompoundStructure()?.GetLayers()
+            .Select(l => new { function = l.Function.ToString(), width_mm = MmUnits.FromFt(l.Width), material_id = l.MaterialId.Value })
+            .ToList() ?? (object)new List<object>();
+
+        static object Symbols(Document doc, BuiltInCategory cat) =>
+            new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).OfCategory(cat).Cast<FamilySymbol>()
+                .Select(s => new
+                {
+                    id = s.Id.Value, family = s.FamilyName, type = s.Name,
+                    length_params_mm = s.Parameters.Cast<Parameter>()
+                        .Where(p => p.StorageType == StorageType.Double && p.Definition != null
+                                    && p.Definition.GetDataType() == SpecTypeId.Length)
+                        .GroupBy(p => p.Definition.Name)
+                        .ToDictionary(g => g.Key, g => MmUnits.FromFt(g.First().AsDouble())),
+                }).ToList();
+
+        return new
+        {
+            structural_column_types = Symbols(doc, BuiltInCategory.OST_StructuralColumns),
+            column_types = Symbols(doc, BuiltInCategory.OST_Columns),
+            floor_types = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>()
+                .Select(t => new { id = t.Id.Value, name = t.Name, layers = Layers(t) }).ToList(),
+            wall_types = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>()
+                .Select(t => new { id = t.Id.Value, name = t.Name, kind = t.Kind.ToString(), layers = Layers(t) }).ToList(),
+        };
+    }
+}
