@@ -117,7 +117,18 @@ public class WebSocketServer
             }
 
             // v0.1: handle one connection at a time (await before accepting the next).
-            await HandleConnectionAsync(context, ct);
+            try
+            {
+                await HandleConnectionAsync(context, ct);
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                // One failed connection must not end the accept loop. Seen when a client timed out and
+                // closed before a slow command answered: SendAsync threw, the loop died silently, and the
+                // server stopped answering until Revit restarted.
+                Log.Error(ex, "WebSocket connection from {RemoteEndPoint} failed; still accepting connections",
+                    context.Request.RemoteEndPoint);
+            }
         }
     }
 
