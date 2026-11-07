@@ -89,6 +89,9 @@ public class ApplyColumnsCommand : ICommand
                         s.Structural ? StructuralType.Column : StructuralType.NonStructural);
                     ModelLookup.SetMark(column, s.Mark);
                     changes.Add("created");
+                    // A new instance reports a stale location until the document regenerates; without this the
+                    // move below reads (0,0) and shifts the column by its own coordinates (positions came out doubled).
+                    doc.Regenerate();
                 }
 
                 // Levels first (top before base so the column never inverts), then offsets.
@@ -106,6 +109,7 @@ public class ApplyColumnsCommand : ICommand
                 {
                     ElementTransformUtils.MoveElement(doc, column.Id, new XYZ(dx, dy, 0));
                     if (!changes.Contains("created")) changes.Add("position");
+                    doc.Regenerate(); // rotation below must use the moved location
                 }
                 var lp2 = (LocationPoint)column.Location;
                 var wantRot = s.RotationDeg * Math.PI / 180.0;
