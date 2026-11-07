@@ -134,6 +134,11 @@ public class EnsureTypesCommand : ICommand
             if (current == null || !SameLayers(current.GetLayers(), wanted))
             {
                 var cs = CompoundStructure.CreateSimpleCompoundStructure(wanted);
+                // Revit rejects a structure whose end-cap condition does not suit the element type
+                // ("Input compound structure has wrong EndCap condition"): floors and roofs need NoEndCap,
+                // walls keep their own. Take it from the type's current structure, which Revit already accepted.
+                if (current != null) cs.EndCap = current.EndCap;
+                else if (type is not WallType) cs.EndCap = EndCapCondition.NoEndCap;
                 var structural = wanted.FindIndex(l => l.Function == MaterialFunctionAssignment.Structure);
                 if (structural >= 0) cs.StructuralMaterialIndex = structural;
                 type.SetCompoundStructure(cs);
