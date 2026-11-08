@@ -1,4 +1,6 @@
 using Autodesk.Revit.DB;
+using OaAecMcpPlugin.Services;
+using Nice3point.Revit.Extensions;
 using Serilog;
 using System.Text.Json;
 
@@ -142,7 +144,7 @@ public class ApplyDatumsCommand : ICommand
         // Levels not in the spec form a pool that is reused (renamed) before new levels are created,
         // so template levels and their views are kept instead of piling up.
         var pool = existing.Where(l => !wanted.Contains(l.Name)).ToList();
-        foreach (var l in pool) l.Name = $"tmp_oa_{l.Id.Value}";
+        foreach (var l in pool) l.Name = $"tmp_oa_{l.Id.ToLong()}";
 
         var made = new List<(LevelSpec Spec, Level Level)>();
         foreach (var s in specs)
@@ -174,7 +176,7 @@ public class ApplyDatumsCommand : ICommand
             level.Name = s.Name;
 
             made.Add((s, level));
-            report.Levels.Add(new { name = s.Name, id = level.Id.Value, action, internal_elevation_mm = Mm(level.ProjectElevation) });
+            report.Levels.Add(new { name = s.Name, id = level.Id.ToLong(), action, internal_elevation_mm = Mm(level.ProjectElevation) });
         }
 
         foreach (var l in pool)
@@ -256,7 +258,7 @@ public class ApplyDatumsCommand : ICommand
             {
                 if (existing.Curve is Line line && !existing.IsCurved && SameSegment(line, a, b))
                 {
-                    report.Grids.Add(new { name = s.Name, id = existing.Id.Value, action = "unchanged" });
+                    report.Grids.Add(new { name = s.Name, id = existing.Id.ToLong(), action = "unchanged" });
                     continue;
                 }
                 // A grid's 3D line cannot be edited in place; replace it.
@@ -265,14 +267,14 @@ public class ApplyDatumsCommand : ICommand
             }
 
             var grid = Grid.Create(doc, Line.CreateBound(a, b));
-            grid.Name = $"tmp_oa_{grid.Id.Value}";   // final names after all are created — avoids clashes with auto-names
+            grid.Name = $"tmp_oa_{grid.Id.ToLong()}";   // final names after all are created — avoids clashes with auto-names
             toName.Add((grid, s.Name, action));
         }
 
         foreach (var (grid, name, action) in toName)
         {
             grid.Name = name;
-            report.Grids.Add(new { name, id = grid.Id.Value, action });
+            report.Grids.Add(new { name, id = grid.Id.ToLong(), action });
         }
     }
 
@@ -343,7 +345,7 @@ public class ApplyDatumsCommand : ICommand
             if (fallback.HasValue) return fallback.Value;
             throw new ArgumentException($"'{key}' is required");
         }
-        if (v.ValueKind != JsonValueKind.Number || !double.IsFinite(v.GetDouble()))
+        if (v.ValueKind != JsonValueKind.Number || !SpecReader.IsFinite(v.GetDouble()))
             throw new ArgumentException($"'{key}' must be a finite number");
         return v.GetDouble();
     }

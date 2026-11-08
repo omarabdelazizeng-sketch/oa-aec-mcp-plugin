@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Nice3point.Revit.Extensions;
 using System.Text.Json;
 
 namespace OaAecMcpPlugin.Commands;
@@ -38,7 +39,7 @@ public class GetDatumsCommand : ICommand
             .Select(l => new
             {
                 name = l.Name,
-                id = l.Id.Value,
+                id = l.Id.ToLong(),
                 internal_elevation_mm = Mm(l.ProjectElevation),
                 elevation_mm = Mm(l.Elevation),
             })
@@ -54,7 +55,7 @@ public class GetDatumsCommand : ICommand
                 return new
                 {
                     name = g.Name,
-                    id = g.Id.Value,
+                    id = g.Id.ToLong(),
                     is_curved = g.IsCurved,
                     start_mm = Mm(curve.GetEndPoint(0)),
                     end_mm = Mm(curve.GetEndPoint(1)),

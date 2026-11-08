@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Nice3point.Revit.Extensions;
 using Serilog;
 
 namespace OaAecMcpPlugin.Services;
@@ -113,7 +114,7 @@ public sealed class ModelLookup
     public static void SetMark(Element e, string mark)
     {
         var p = e.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
-                ?? throw new InvalidOperationException($"element {e.Id.Value} has no Mark parameter");
+                ?? throw new InvalidOperationException($"element {e.Id.ToLong()} has no Mark parameter");
         if (p.AsString() != mark) p.Set(mark);
     }
 }

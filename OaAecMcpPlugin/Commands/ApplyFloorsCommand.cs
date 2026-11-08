@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Nice3point.Revit.Extensions;
 using OaAecMcpPlugin.Services;
 using System.Text.Json;
 
@@ -67,7 +68,7 @@ public class ApplyFloorsCommand : ICommand
                 {
                     if (Matches(doc, floor, type, level, s, wantLoops))
                     {
-                        results.Add(new { mark = s.Mark, id = floor.Id.Value, action = "unchanged" });
+                        results.Add(new { mark = s.Mark, id = floor.Id.ToLong(), action = "unchanged" });
                         continue;
                     }
                     doc.Delete(floor.Id);
@@ -81,7 +82,7 @@ public class ApplyFloorsCommand : ICommand
                 ModelLookup.SetMark(created, s.Mark);
                 created.get_Parameter(BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)?.Set(MmUnits.ToFt(s.OffsetMm));
 
-                results.Add(new { mark = s.Mark, id = created.Id.Value, action });
+                results.Add(new { mark = s.Mark, id = created.Id.ToLong(), action });
             }
         });
 
@@ -161,9 +162,13 @@ public class ApplyFloorsCommand : ICommand
                 throw new ArgumentException($"floor '{mark}': 'boundary' is required");
             var openings = SpecReader.Items(f, "openings")
                 .Select((o, i) => SpecReader.Polygon(o, $"floor '{mark}' opening {i}")).ToList();
+            var boundary = SpecReader.Polygon(b, $"floor '{mark}' boundary");
+            foreach (var loop in new[] { boundary }.Concat(openings))
+                for (var i = 0; i < loop.Count; i++)
+                    AxisGuard.Segment(mark, loop[i], loop[(i + 1) % loop.Count]);
             specs.Add(new FloorSpec(mark, SpecReader.Str(f, "type"), SpecReader.Str(f, "level"),
                 SpecReader.Num(f, "offset_mm", 0), SpecReader.Bool(f, "structural", false),
-                SpecReader.Polygon(b, $"floor '{mark}' boundary"), openings));
+                boundary, openings));
         }
         if (specs.Count == 0) throw new ArgumentException("'floors' is empty");
         SpecReader.Unique(specs.Select(s => s.Mark), "floor mark");
