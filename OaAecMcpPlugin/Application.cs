@@ -51,6 +51,7 @@ public class Application : ExternalApplication
             registry.Register(new ApplyWallsCommand());
             registry.Register(new ApplyDoorsCommand());
             registry.Register(new ApplyWindowsCommand());
+            registry.Register(new ApplyRoomsCommand());
             registry.Register(new LoadFamiliesCommand());
             registry.Register(new GetModelElementsCommand());
 
