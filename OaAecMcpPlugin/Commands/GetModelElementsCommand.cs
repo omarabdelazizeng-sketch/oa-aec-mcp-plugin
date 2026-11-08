@@ -5,10 +5,10 @@ using System.Text.Json;
 namespace OaAecMcpPlugin.Commands;
 
 /// <summary>
-///     Read-only. Reports columns, floors, walls and their types in millimetres, so a checker can verify
+///     Read-only. Reports columns, floors, walls, doors, windows and their types in millimetres, so a checker can verify
 ///     the model against a spec independently of the apply_* builders. Raw facts only — no comparison.
 ///
-///     Params (optional): { "categories": ["structural_columns", "columns", "floors", "walls", "types"] }
+///     Params (optional): { "categories": ["structural_columns", "columns", "floors", "walls", "doors", "windows", "types"] }
 ///     Default: all of them.
 ///
 ///     Threading: Execute is called exclusively from
@@ -18,7 +18,7 @@ public class GetModelElementsCommand : ICommand
 {
     public string Name => "get_model_elements";
 
-    private static readonly string[] All = { "structural_columns", "columns", "floors", "walls", "types" };
+    private static readonly string[] All = { "structural_columns", "columns", "floors", "walls", "doors", "windows", "types" };
 
     public object Execute(Document? doc, JsonElement parameters)
     {
@@ -42,6 +42,8 @@ public class GetModelElementsCommand : ICommand
         if (wanted.Contains("columns")) result["columns"] = Columns(doc, BuiltInCategory.OST_Columns, levelNames);
         if (wanted.Contains("floors")) result["floors"] = Floors(doc, levelNames);
         if (wanted.Contains("walls")) result["walls"] = Walls(doc, levelNames);
+        if (wanted.Contains("doors")) result["doors"] = Openings(doc, BuiltInCategory.OST_Doors, levelNames);
+        if (wanted.Contains("windows")) result["windows"] = Openings(doc, BuiltInCategory.OST_Windows, levelNames);
         if (wanted.Contains("types")) result["types"] = Types(doc);
         return result;
     }
@@ -135,6 +137,40 @@ public class GetModelElementsCommand : ICommand
                 };
             }).ToList();
 
+    private static List<object> Openings(Document doc, BuiltInCategory category, Dictionary<ElementId, Level> levels) =>
+        new FilteredElementCollector(doc).OfCategory(category).WhereElementIsNotElementType()
+            .OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+            .Select(instance =>
+            {
+                var lp = instance.Location as LocationPoint;
+                var host = instance.Host as Wall;
+                return (object)new
+                {
+                    id = instance.Id.Value, mark = ModelLookup.Mark(instance),
+                    family = instance.Symbol.FamilyName, type = instance.Symbol.Name,
+                    level = LevelName(levels, instance.LevelId),
+                    host_wall_mark = host != null ? ModelLookup.Mark(host) : null,
+                    location_mm = lp != null ? new[] { MmUnits.FromFt(lp.Point.X), MmUnits.FromFt(lp.Point.Y) } : null,
+                    sill_height_mm = OpeningFacts.Mm(OpeningFacts.Length(instance, BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM)),
+                    head_height_mm = OpeningFacts.Mm(OpeningFacts.Length(instance, BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM)),
+                    width_mm = OpeningFacts.Mm(OpeningFacts.Dimension(instance, width: true)
+                                              ?? OpeningFacts.Dimension(instance.Symbol, width: true)),
+                    height_mm = OpeningFacts.Mm(OpeningFacts.Dimension(instance, width: false)
+                                               ?? OpeningFacts.Dimension(instance.Symbol, width: false)),
+                    hand_flipped = instance.HandFlipped, facing_flipped = instance.FacingFlipped,
+                    rotation_deg = lp != null ? lp.Rotation * 180.0 / Math.PI : (double?)null,
+                };
+            }).ToList();
+
+    private static object OpeningTypes(Document doc, BuiltInCategory category) =>
+        new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).OfCategory(category).Cast<FamilySymbol>()
+            .Select(symbol => new
+            {
+                family = symbol.FamilyName, type = symbol.Name,
+                width_mm = OpeningFacts.Mm(OpeningFacts.Dimension(symbol, width: true)),
+                height_mm = OpeningFacts.Mm(OpeningFacts.Dimension(symbol, width: false)),
+            }).ToList();
+
     private static object Types(Document doc)
     {
         static object Layers(HostObjAttributes t) => t.GetCompoundStructure()?.GetLayers()
@@ -157,6 +193,8 @@ public class GetModelElementsCommand : ICommand
         {
             structural_column_types = Symbols(doc, BuiltInCategory.OST_StructuralColumns),
             column_types = Symbols(doc, BuiltInCategory.OST_Columns),
+            door_types = OpeningTypes(doc, BuiltInCategory.OST_Doors),
+            window_types = OpeningTypes(doc, BuiltInCategory.OST_Windows),
             floor_types = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>()
                 .Select(t => new { id = t.Id.Value, name = t.Name, layers = Layers(t) }).ToList(),
             wall_types = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>()
