@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Nice3point.Revit.Extensions;
 using OaAecMcpPlugin.Services;
 using System.Text.Json;
 
@@ -67,7 +68,7 @@ public class ApplyFloorsCommand : ICommand
                 {
                     if (Matches(doc, floor, type, level, s, wantLoops))
                     {
-                        results.Add(new { mark = s.Mark, id = floor.Id.Value, action = "unchanged" });
+                        results.Add(new { mark = s.Mark, id = floor.Id.ToLong(), action = "unchanged" });
                         continue;
                     }
                     doc.Delete(floor.Id);
@@ -81,7 +82,7 @@ public class ApplyFloorsCommand : ICommand
                 ModelLookup.SetMark(created, s.Mark);
                 created.get_Parameter(BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)?.Set(MmUnits.ToFt(s.OffsetMm));
 
-                results.Add(new { mark = s.Mark, id = created.Id.Value, action });
+                results.Add(new { mark = s.Mark, id = created.Id.ToLong(), action });
             }
         });
 

@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Nice3point.Revit.Extensions;
 using Autodesk.Revit.DB.Structure;
 using OaAecMcpPlugin.Services;
 using Serilog;
@@ -86,7 +87,7 @@ internal static class ApplyOpenings
                         if (Matches(found, r))
                         {
                             applied.Add(s.Mark, found);
-                            results.Add(new { mark = s.Mark, id = found.Id.Value, action = "unchanged" });
+                            results.Add(new { mark = s.Mark, id = found.Id.ToLong(), action = "unchanged" });
                             return true;
                         }
                         var oldId = found.Id;
@@ -123,7 +124,7 @@ internal static class ApplyOpenings
                     doc.Regenerate();
                     applied.Add(s.Mark, created);
                     protectedIds.Add(created.Id);
-                    results.Add(new { mark = s.Mark, id = created.Id.Value, action });
+                    results.Add(new { mark = s.Mark, id = created.Id.ToLong(), action });
                     changed = true;
                     return true;
                 });
@@ -190,8 +191,8 @@ internal static class ApplyOpenings
             {
                 if (!item.TryGetProperty("position", out var p) || p.ValueKind != JsonValueKind.Array
                     || p.GetArrayLength() != 2 || p[0].ValueKind != JsonValueKind.Number
-                    || p[1].ValueKind != JsonValueKind.Number || !double.IsFinite(p[0].GetDouble())
-                    || !double.IsFinite(p[1].GetDouble()))
+                    || p[1].ValueKind != JsonValueKind.Number || !SpecReader.IsFinite(p[0].GetDouble())
+                    || !SpecReader.IsFinite(p[1].GetDouble()))
                     throw new ArgumentException("'position' must be [x,y] finite numbers in mm");
                 double? sill = key == "doors" ? 0 : null;
                 if (item.TryGetProperty("sill_height_mm", out var value) && value.ValueKind != JsonValueKind.Null)

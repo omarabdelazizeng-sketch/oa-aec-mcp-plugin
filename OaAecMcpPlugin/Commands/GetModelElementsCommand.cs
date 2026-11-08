@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Nice3point.Revit.Extensions;
 using OaAecMcpPlugin.Services;
 using System.Text.Json;
 
@@ -68,7 +69,7 @@ public class GetModelElementsCommand : ICommand
                 double? topZ = levels.TryGetValue(topId, out var tl) ? MmUnits.FromFt(tl.ProjectElevation) + topOff : null;
                 return (object)new
                 {
-                    id = c.Id.Value, mark = ModelLookup.Mark(c), family = c.Symbol.FamilyName, type = c.Symbol.Name,
+                    id = c.Id.ToLong(), mark = ModelLookup.Mark(c), family = c.Symbol.FamilyName, type = c.Symbol.Name,
                     x_mm = lp != null ? MmUnits.FromFt(lp.Point.X) : (double?)null,
                     y_mm = lp != null ? MmUnits.FromFt(lp.Point.Y) : (double?)null,
                     rotation_deg = lp != null ? lp.Rotation * 180.0 / Math.PI : (double?)null,
@@ -99,7 +100,7 @@ public class GetModelElementsCommand : ICommand
                 var type = doc.GetElement(f.GetTypeId()) as FloorType;
                 return (object)new
                 {
-                    id = f.Id.Value, mark = ModelLookup.Mark(f), type = type?.Name,
+                    id = f.Id.ToLong(), mark = ModelLookup.Mark(f), type = type?.Name,
                     level = LevelName(levels, f.LevelId),
                     offset_mm = Len(f, BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM),
                     structural = f.get_Parameter(BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL)?.AsInteger() == 1,
@@ -117,7 +118,7 @@ public class GetModelElementsCommand : ICommand
                 var topId = w.get_Parameter(BuiltInParameter.WALL_HEIGHT_TYPE)?.AsElementId() ?? ElementId.InvalidElementId;
                 return (object)new
                 {
-                    id = w.Id.Value, mark = ModelLookup.Mark(w), type = w.WallType.Name, kind = w.WallType.Kind.ToString(),
+                    id = w.Id.ToLong(), mark = ModelLookup.Mark(w), type = w.WallType.Name, kind = w.WallType.Kind.ToString(),
                     width_mm = MmUnits.FromFt(w.WallType.Width),
                     start_mm = curve != null ? MmUnits.Of(curve.GetEndPoint(0)) : null,
                     end_mm = curve != null ? MmUnits.Of(curve.GetEndPoint(1)) : null,
@@ -146,7 +147,7 @@ public class GetModelElementsCommand : ICommand
                 var host = instance.Host as Wall;
                 return (object)new
                 {
-                    id = instance.Id.Value, mark = ModelLookup.Mark(instance),
+                    id = instance.Id.ToLong(), mark = ModelLookup.Mark(instance),
                     family = instance.Symbol.FamilyName, type = instance.Symbol.Name,
                     level = LevelName(levels, instance.LevelId),
                     host_wall_mark = host != null ? ModelLookup.Mark(host) : null,
@@ -174,14 +175,14 @@ public class GetModelElementsCommand : ICommand
     private static object Types(Document doc)
     {
         static object Layers(HostObjAttributes t) => t.GetCompoundStructure()?.GetLayers()
-            .Select(l => new { function = l.Function.ToString(), width_mm = MmUnits.FromFt(l.Width), material_id = l.MaterialId.Value })
+            .Select(l => new { function = l.Function.ToString(), width_mm = MmUnits.FromFt(l.Width), material_id = l.MaterialId.ToLong() })
             .ToList() ?? (object)new List<object>();
 
         static object Symbols(Document doc, BuiltInCategory cat) =>
             new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).OfCategory(cat).Cast<FamilySymbol>()
                 .Select(s => new
                 {
-                    id = s.Id.Value, family = s.FamilyName, type = s.Name,
+                    id = s.Id.ToLong(), family = s.FamilyName, type = s.Name,
                     length_params_mm = s.Parameters.Cast<Parameter>()
                         .Where(p => p.StorageType == StorageType.Double && p.Definition != null
                                     && p.Definition.GetDataType() == SpecTypeId.Length)
@@ -196,9 +197,9 @@ public class GetModelElementsCommand : ICommand
             door_types = OpeningTypes(doc, BuiltInCategory.OST_Doors),
             window_types = OpeningTypes(doc, BuiltInCategory.OST_Windows),
             floor_types = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>()
-                .Select(t => new { id = t.Id.Value, name = t.Name, layers = Layers(t) }).ToList(),
+                .Select(t => new { id = t.Id.ToLong(), name = t.Name, layers = Layers(t) }).ToList(),
             wall_types = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>()
-                .Select(t => new { id = t.Id.Value, name = t.Name, kind = t.Kind.ToString(), layers = Layers(t) }).ToList(),
+                .Select(t => new { id = t.Id.ToLong(), name = t.Name, kind = t.Kind.ToString(), layers = Layers(t) }).ToList(),
         };
     }
 }

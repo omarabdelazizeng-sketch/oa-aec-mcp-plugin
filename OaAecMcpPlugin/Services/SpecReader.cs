@@ -10,6 +10,9 @@ namespace OaAecMcpPlugin.Services;
 /// </summary>
 public static class SpecReader
 {
+    /// <summary>double.IsFinite is not available on .NET Framework 4.8 (Revit 2023 build).</summary>
+    public static bool IsFinite(double d) => !double.IsNaN(d) && !double.IsInfinity(d);
+
     public static JsonElement Obj(JsonElement p, string what = "params")
     {
         if (p.ValueKind != JsonValueKind.Object)
@@ -50,7 +53,7 @@ public static class SpecReader
             if (fallback.HasValue) return fallback.Value;
             throw new ArgumentException($"'{key}' is required");
         }
-        if (v.ValueKind != JsonValueKind.Number || !double.IsFinite(v.GetDouble()))
+        if (v.ValueKind != JsonValueKind.Number || !IsFinite(v.GetDouble()))
             throw new ArgumentException($"'{key}' must be a finite number");
         return v.GetDouble();
     }

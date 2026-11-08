@@ -28,7 +28,7 @@ public class LoadFamiliesCommand : ICommand
         {
             SpecReader.Obj(item, "family");
             var path = SpecReader.Str(item, "path");
-            if (!Path.IsPathFullyQualified(path)) throw new ArgumentException($"family path '{path}' must be absolute");
+            if (!IsAbsolutePath(path)) throw new ArgumentException($"family path '{path}' must be absolute");
             if (!string.Equals(Path.GetExtension(path), ".rfa", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException($"family path '{path}' must end with .rfa");
             if (!File.Exists(path)) throw new ArgumentException($"family path '{path}' does not exist");
@@ -102,4 +102,8 @@ public class LoadFamiliesCommand : ICommand
             return true;
         }
     }
+
+    /// <summary>Path.IsPathFullyQualified is not available on .NET Framework 4.8: accept drive-rooted and UNC paths.</summary>
+    private static bool IsAbsolutePath(string path) =>
+        Path.IsPathRooted(path) && (path.StartsWith(@"\\", StringComparison.Ordinal) || (path.Length > 2 && path[1] == ':' && (path[2] == '\\' || path[2] == '/')));
 }

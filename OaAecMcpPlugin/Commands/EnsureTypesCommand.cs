@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Nice3point.Revit.Extensions;
 using OaAecMcpPlugin.Services;
 using System.Text.Json;
 
@@ -99,7 +100,7 @@ public class EnsureTypesCommand : ICommand
 
         return new
         {
-            kind = s.Kind, name = s.Name, family = s.Family, id = symbol.Id.Value, action,
+            kind = s.Kind, name = s.Name, family = s.Family, id = symbol.Id.ToLong(), action,
             params_mm = s.ParamsMm.ToDictionary(kv => kv.Key, kv => MmUnits.FromFt(symbol.LookupParameter(kv.Key)!.AsDouble())),
         };
     }
@@ -147,11 +148,11 @@ public class EnsureTypesCommand : ICommand
         }
 
         var layers = type.GetCompoundStructure()?.GetLayers()
-            .Select(l => new { function = l.Function.ToString(), width_mm = MmUnits.FromFt(l.Width), material_id = l.MaterialId.Value })
+            .Select(l => new { function = l.Function.ToString(), width_mm = MmUnits.FromFt(l.Width), material_id = l.MaterialId.ToLong() })
             .ToList();
         var total = type.GetCompoundStructure()?.GetWidth() ?? 0;
 
-        return new { kind = s.Kind, name = s.Name, id = type.Id.Value, action, total_mm = MmUnits.FromFt(total), layers };
+        return new { kind = s.Kind, name = s.Name, id = type.Id.ToLong(), action, total_mm = MmUnits.FromFt(total), layers };
     }
 
     private static bool SameLayers(IList<CompoundStructureLayer> a, IList<CompoundStructureLayer> b)
@@ -181,7 +182,7 @@ public class EnsureTypesCommand : ICommand
             if (t.TryGetProperty("params_mm", out var pm) && pm.ValueKind == JsonValueKind.Object)
                 foreach (var prop in pm.EnumerateObject())
                 {
-                    if (prop.Value.ValueKind != JsonValueKind.Number || !double.IsFinite(prop.Value.GetDouble()))
+                    if (prop.Value.ValueKind != JsonValueKind.Number || !SpecReader.IsFinite(prop.Value.GetDouble()))
                         throw new ArgumentException($"type '{name}': params_mm.{prop.Name} must be a number");
                     paramsMm[prop.Name] = prop.Value.GetDouble();
                 }

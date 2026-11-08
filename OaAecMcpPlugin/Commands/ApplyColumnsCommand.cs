@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Nice3point.Revit.Extensions;
 using Autodesk.Revit.DB.Structure;
 using OaAecMcpPlugin.Services;
 using System.Text.Json;
@@ -122,7 +123,7 @@ public class ApplyColumnsCommand : ICommand
                 }
 
                 var action = changes.Count == 0 ? "unchanged" : changes.Contains("created") ? "created" : "updated: " + string.Join(", ", changes);
-                results.Add(new { mark = s.Mark, id = column.Id.Value, action });
+                results.Add(new { mark = s.Mark, id = column.Id.ToLong(), action });
             }
         });
 
@@ -135,7 +136,7 @@ public class ApplyColumnsCommand : ICommand
 
     private static void SetId(Element e, BuiltInParameter bip, ElementId value, List<string> changes, string label)
     {
-        var p = e.get_Parameter(bip) ?? throw new InvalidOperationException($"element {e.Id.Value} has no {label} parameter");
+        var p = e.get_Parameter(bip) ?? throw new InvalidOperationException($"element {e.Id.ToLong()} has no {label} parameter");
         if (p.AsElementId() == value) return;
         p.Set(value);
         if (!changes.Contains("created")) changes.Add(label);
@@ -143,7 +144,7 @@ public class ApplyColumnsCommand : ICommand
 
     private static void SetLen(Element e, BuiltInParameter bip, double mm, List<string> changes, string label)
     {
-        var p = e.get_Parameter(bip) ?? throw new InvalidOperationException($"element {e.Id.Value} has no {label} parameter");
+        var p = e.get_Parameter(bip) ?? throw new InvalidOperationException($"element {e.Id.ToLong()} has no {label} parameter");
         var target = MmUnits.ToFt(mm);
         if (Math.Abs(p.AsDouble() - target) <= Tol) return;
         p.Set(target);

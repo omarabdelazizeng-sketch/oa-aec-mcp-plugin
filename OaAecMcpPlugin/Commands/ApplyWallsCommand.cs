@@ -50,7 +50,7 @@ public class ApplyWallsCommand : ICommand
             var top = s.TopLevel == null ? null : Context(s.Mark, "top_level", () => lookup.GetLevel(s.TopLevel));
             var height = top == null ? MmUnits.ToFt(s.HeightMm)
                 : top.ProjectElevation + MmUnits.ToFt(s.TopOffsetMm) - level.ProjectElevation - MmUnits.ToFt(s.BaseOffsetMm);
-            if (!double.IsFinite(height) || height <= 0 || height > 30000)
+            if (!SpecReader.IsFinite(height) || height <= 0 || height > 30000)
                 throw new ArgumentException($"wall '{s.Mark}': '{(top == null ? "height_mm" : "top_level/top_offset_mm/base_offset_mm")}' must give a positive height no greater than {MmUnits.FromFt(30000)} mm");
             var length = MmUnits.Xyz(s.Start.X, s.Start.Y).DistanceTo(MmUnits.Xyz(s.End.X, s.End.Y));
             if (length < doc.Application.ShortCurveTolerance)
@@ -190,7 +190,7 @@ public class ApplyWallsCommand : ICommand
                 var dx = end.X - start.X;
                 var dy = end.Y - start.Y;
                 var length = Math.Sqrt(dx * dx + dy * dy);
-                if (!double.IsFinite(length) || length < 1.0)
+                if (!SpecReader.IsFinite(length) || length < 1.0)
                     throw new ArgumentException("'start/end' must define a finite segment at least 1 mm long");
                 AxisGuard.Segment(mark, start, end, "start/end");
                 var top = SpecReader.OptStr(w, "top_level");
@@ -230,7 +230,7 @@ public class ApplyWallsCommand : ICommand
     {
         if (!w.TryGetProperty(field, out var v) || v.ValueKind != JsonValueKind.Array || v.GetArrayLength() != 2
             || v[0].ValueKind != JsonValueKind.Number || v[1].ValueKind != JsonValueKind.Number
-            || !double.IsFinite(v[0].GetDouble()) || !double.IsFinite(v[1].GetDouble()))
+            || !SpecReader.IsFinite(v[0].GetDouble()) || !SpecReader.IsFinite(v[1].GetDouble()))
             throw new ArgumentException($"'{field}' must be [x,y] finite numbers in mm");
         return (v[0].GetDouble(), v[1].GetDouble());
     }

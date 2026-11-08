@@ -10,7 +10,7 @@ internal static class OpeningFacts
     {
         var p = element.get_Parameter(parameter);
         return p is { HasValue: true, StorageType: StorageType.Double }
-               && p.Definition.GetDataType() == SpecTypeId.Length && double.IsFinite(p.AsDouble())
+               && p.Definition.GetDataType() == SpecTypeId.Length && SpecReader.IsFinite(p.AsDouble())
             ? p.AsDouble() : null;
     }
 
@@ -24,7 +24,7 @@ internal static class OpeningFacts
         var named = element.GetParameters(width ? "Width" : "Height")
             .Where(p => p.HasValue && p.StorageType == StorageType.Double
                         && p.Definition.GetDataType() == SpecTypeId.Length).ToList();
-        return named.Count == 1 && double.IsFinite(named[0].AsDouble()) ? named[0].AsDouble() : null;
+        return named.Count == 1 && SpecReader.IsFinite(named[0].AsDouble()) ? named[0].AsDouble() : null;
     }
 
     /// <summary>Converts a readable internal length to millimetres without turning missing data into zero.</summary>
