@@ -168,6 +168,7 @@ public class ApplyColumnsCommand : ICommand
         }
         if (specs.Count == 0) throw new ArgumentException("'columns' is empty");
         SpecReader.Unique(specs.Select(s => (s.Structural ? "S:" : "A:") + s.Mark), "column mark");
+        foreach (var s in specs) AxisGuard.Rotation(s.Mark, s.RotationDeg);
         return specs;
     }
 }

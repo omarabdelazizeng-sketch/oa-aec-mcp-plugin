@@ -161,9 +161,13 @@ public class ApplyFloorsCommand : ICommand
                 throw new ArgumentException($"floor '{mark}': 'boundary' is required");
             var openings = SpecReader.Items(f, "openings")
                 .Select((o, i) => SpecReader.Polygon(o, $"floor '{mark}' opening {i}")).ToList();
+            var boundary = SpecReader.Polygon(b, $"floor '{mark}' boundary");
+            foreach (var loop in new[] { boundary }.Concat(openings))
+                for (var i = 0; i < loop.Count; i++)
+                    AxisGuard.Segment(mark, loop[i], loop[(i + 1) % loop.Count]);
             specs.Add(new FloorSpec(mark, SpecReader.Str(f, "type"), SpecReader.Str(f, "level"),
                 SpecReader.Num(f, "offset_mm", 0), SpecReader.Bool(f, "structural", false),
-                SpecReader.Polygon(b, $"floor '{mark}' boundary"), openings));
+                boundary, openings));
         }
         if (specs.Count == 0) throw new ArgumentException("'floors' is empty");
         SpecReader.Unique(specs.Select(s => s.Mark), "floor mark");

@@ -120,7 +120,12 @@ public class GetModelElementsCommand : ICommand
                     start_mm = curve != null ? MmUnits.Of(curve.GetEndPoint(0)) : null,
                     end_mm = curve != null ? MmUnits.Of(curve.GetEndPoint(1)) : null,
                     is_line = curve is Line,
+                    has_curved_edges = curve != null && curve is not Line,
                     location_line = w.get_Parameter(BuiltInParameter.WALL_KEY_REF_PARAM)?.AsInteger(),
+                    location_line_name = w.get_Parameter(BuiltInParameter.WALL_KEY_REF_PARAM) is { } location
+                        ? ApplyWallsCommand.LocationLineName((WallLocationLine)location.AsInteger()) : null,
+                    structural_usage = w.StructuralUsage.ToString(),
+                    structural = w.get_Parameter(BuiltInParameter.WALL_STRUCTURAL_SIGNIFICANT)?.AsInteger() == 1,
                     flipped = w.Flipped,
                     base_level = LevelName(levels, w.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT)?.AsElementId() ?? ElementId.InvalidElementId),
                     base_offset_mm = Len(w, BuiltInParameter.WALL_BASE_OFFSET),

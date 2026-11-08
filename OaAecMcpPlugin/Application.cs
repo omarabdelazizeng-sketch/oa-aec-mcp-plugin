@@ -48,6 +48,7 @@ public class Application : ExternalApplication
             registry.Register(new EnsureTypesCommand());
             registry.Register(new ApplyColumnsCommand());
             registry.Register(new ApplyFloorsCommand());
+            registry.Register(new ApplyWallsCommand());
             registry.Register(new GetModelElementsCommand());
 
             // CommandDispatcher creates the ExternalEvent internally (requires main thread).
